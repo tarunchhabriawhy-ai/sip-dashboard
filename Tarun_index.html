@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Khushboo's SIP Drawdown Analysis</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
+    <style>
+        body { margin: 0; background-color: #030712; color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+        .btn-group { display: flex; gap: 8px; margin-bottom: 30px; background: #0f172a; padding: 4px; border-radius: 10px; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; background: transparent; color: #64748b; font-weight: 600; transition: 0.2s; }
+        .btn.active { background: #1e293b; color: #f1f5f9; }
+        .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+        h1 { font-size: 28px; margin-bottom: 10px; text-align: center; }
+        .subtitle { color: #94a3b8; text-align: center; margin-bottom: 40px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 24px; }
+        .stat-card { background: #1e293b66; padding: 16px; border-radius: 12px; border: 1px solid #1e293b; }
+        .stat-val { font-size: 20px; font-weight: 700; color: #22c55e; margin-bottom: 4px; }
+        .stat-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+        const { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } = Recharts;
+
+        // Data for the Simulation
+        const crashes = [
+            { id: "gfc", name: "2008 GFC", drop: "-64%", recovery: "22 Months", color: "#ef4444", data: [
+                {m:1, v:100}, {m:6, v:95}, {m:12, v:40}, {m:18, v:36}, {m:24, v:60}, {m:30, v:85}, {m:36, v:100}
+            ]},
+            { id: "covid", name: "2020 COVID", drop: "-42%", recovery: "6 Months", color: "#f97316", data: [
+                {m:1, v:100}, {m:2, v:98}, {m:3, v:58}, {m:5, v:75}, {m:8, v:95}, {m:10, v:100}
+            ]}
+        ];
+
+        const sipUnits = [
+            { stage: "Normal", units: 45, price: 100 },
+            { stage: "Crash -20%", units: 56, price: 80 },
+            { stage: "Crash -40%", units: 75, price: 60 },
+            { stage: "Bottom -50%", units: 90, price: 50 }
+        ];
+
+        function Dashboard() {
+            const [activeTab, setActiveTab] = useState('crashes');
+            const [activeCrash, setActiveCrash] = useState(0);
+
+            return (
+                <div className="container">
+                    <h1>Khushboo's SIP Resilience Dashboard</h1>
+                    <p className="subtitle">₹4,500 Monthly · Total Market Index · 15-Year Goal</p>
+
+                    <div className="btn-group">
+                        <button className={`btn ${activeTab === 'crashes' ? 'active' : ''}`} onClick={() => setActiveTab('crashes')}>📉 Crash History</button>
+                        <button className={`btn ${activeTab === 'sip' ? 'active' : ''}`} onClick={() => setActiveTab('sip')}>🎯 SIP Advantage</button>
+                    </div>
+
+                    {activeTab === 'crashes' ? (
+                        <div className="card">
+                            <div style={{display: 'flex', gap: '10px', marginBottom: '20px'}}>
+                                {crashes.map((c, i) => (
+                                    <button key={c.id} onClick={() => setActiveCrash(i)} style={{
+                                        padding: '8px 16px', borderRadius: '6px', border: '1px solid #334155',
+                                        background: activeCrash === i ? c.color : 'transparent',
+                                        color: activeCrash === i ? 'white' : '#94a3b8', cursor: 'pointer'
+                                    }}>{c.name}</button>
+                                ))}
+                            </div>
+                            <h3 style={{color: crashes[activeCrash].color}}>The {crashes[activeCrash].name} Drawdown</h3>
+                            <div style={{height: '300px', width: '100%'}}>
+                                <ResponsiveContainer>
+                                    <AreaChart data={crashes[activeCrash].data}>
+                                        <defs>
+                                            <linearGradient id="colorV" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor={crashes[activeCrash].color} stopOpacity={0.3}/>
+                                                <stop offset="95%" stopColor={crashes[activeCrash].color} stopOpacity={0}/>
+                                            </linearGradient>
+                                        </defs>
+                                        <XAxis dataKey="m" stroke="#475569" label={{ value: 'Months', position: 'insideBottom', offset: -5 }} />
+                                        <YAxis stroke="#475569" />
+                                        <Tooltip contentStyle={{background: '#0f172a', border: '1px solid #334155'}} />
+                                        <Area type="monotone" dataKey="v" stroke={crashes[activeCrash].color} fillOpacity={1} fill="url(#colorV)" strokeWidth={3} />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="grid">
+                                <div className="stat-card">
+                                    <div className="stat-label">Max Drop</div>
+                                    <div className="stat-val" style={{color: '#ef4444'}}>{crashes[activeCrash].drop}</div>
+                                </div>
+                                <div className="stat-card">
+                                    <div className="stat-label">Time to Recover</div>
+                                    <div className="stat-val">{crashes[activeCrash].recovery}</div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="card">
+                            <h3>Buying the Dip (Unit Accumulation)</h3>
+                            <p style={{color: '#94a3b8', fontSize: '14px', marginBottom: '20px'}}>When markets fall, your ₹4,500 buys significantly more units of the fund.</p>
+                            <div style={{height: '300px', width: '100%'}}>
+                                <ResponsiveContainer>
+                                    <BarChart data={sipUnits}>
+                                        <XAxis dataKey="stage" stroke="#475569" />
+                                        <YAxis stroke="#475569" />
+                                        <Tooltip cursor={{fill: '#1e293b'}} contentStyle={{background: '#0f172a', border: '1px solid #334155'}} />
+                                        <Bar dataKey="units" radius={[6, 6, 0, 0]}>
+                                            {sipUnits.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={index === 3 ? '#22c55e' : '#3b82f6'} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div style={{marginTop: '20px', padding: '15px', background: '#1e293b', borderRadius: '8px', color: '#22c55e', fontWeight: 'bold'}}>
+                                💡 At the bottom, you buy 2x as many units as you did at the peak!
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<Dashboard />);
+    </script>
+</body>
+</html>
