@@ -9,78 +9,179 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
     <style>
-        body { margin: 0; background-color: #030712; color: #f1f5f9; font-family: -apple-system, sans-serif; }
-        .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
-        .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; margin-bottom: 24px; }
-        h1 { text-align: center; background: linear-gradient(135deg, #f1f5f9, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .nav-tabs { display: flex; gap: 4px; background: #0f172a; padding: 4px; border-radius: 10px; margin-bottom: 30px; }
-        .tab-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; background: transparent; color: #475569; font-weight: bold; }
-        .tab-btn.active { background: #1e293b; color: #f1f5f9; }
+        body { margin: 0; background-color: #030712; }
     </style>
 </head>
 <body>
     <div id="root"></div>
+
     <script type="text/babel">
-        const { useState } = React;
-        const { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } = Recharts;
+        const { useState, useEffect } = React;
+        const { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } = Recharts;
 
         const crashes = [
-            { id: "gfc", name: "2008 GFC", drop: "-64%", recovery: "22 Months", color: "#ef4444", data: [{m:1, v:100}, {m:6, v:95}, {m:12, v:40}, {m:18, v:36}, {m:24, v:60}, {m:36, v:100}] },
-            { id: "covid", name: "2020 COVID", drop: "-42%", recovery: "6 Months", color: "#f97316", data: [{m:1, v:100}, {m:2, v:98}, {m:3, v:58}, {m:5, v:75}, {m:10, v:100}] }
+          {
+            id: "gfc2008",
+            name: "2008 Global Financial Crisis",
+            year: "2008–2009",
+            trigger: "Lehman Brothers collapse, global credit freeze",
+            nifty50Drop: -57,
+            totalMarketDrop: -64,
+            nifty50Recovery: 27,
+            totalMarketRecovery: 22,
+            sipBonus: "Units bought during trough were 2.3x cheaper",
+            color: "#ef4444",
+            months: Array.from({ length: 48 }, (_, i) => {
+              const crash = i >= 6 && i <= 18;
+              const recovery = i > 18;
+              const n50 = crash ? 100 - ((i - 6) / 12) * 57 : recovery ? Math.min(100, 43 + ((i - 18) / 27) * 57) : 100;
+              const tm = crash ? 100 - ((i - 6) / 12) * 64 : recovery ? Math.min(100, 36 + ((i - 18) / 22) * 64) : 100;
+              return { month: i + 1, nifty50: Math.round(n50), totalMarket: Math.round(tm) };
+            })
+          },
+          {
+            id: "covid2020",
+            name: "2020 COVID Crash",
+            year: "Feb–Mar 2020",
+            trigger: "Pandemic lockdowns, global economic halt",
+            nifty50Drop: -38,
+            totalMarketDrop: -42,
+            nifty50Recovery: 7,
+            totalMarketRecovery: 6,
+            sipBonus: "Fastest recovery in history — SIP buyers won big",
+            color: "#f97316",
+            months: Array.from({ length: 24 }, (_, i) => {
+              const crash = i >= 2 && i <= 4;
+              const recovery = i > 4;
+              const n50 = crash ? 100 - ((i - 2) / 2) * 38 : recovery ? Math.min(100, 62 + ((i - 4) / 7) * 38) : 100;
+              const tm = crash ? 100 - ((i - 2) / 2) * 42 : recovery ? Math.min(100, 58 + ((i - 4) / 6) * 42) : 100;
+              return { month: i + 1, nifty50: Math.round(n50), totalMarket: Math.round(tm) };
+            })
+          },
+          {
+            id: "eudebt2011",
+            name: "2011 European Debt Crisis",
+            year: "2011",
+            trigger: "European sovereign debt crisis, FII outflows",
+            nifty50Drop: -28,
+            totalMarketDrop: -35,
+            nifty50Recovery: 18,
+            totalMarketRecovery: 14,
+            sipBonus: "Mid/small recovered faster than large caps",
+            color: "#eab308",
+            months: Array.from({ length: 36 }, (_, i) => {
+              const crash = i >= 3 && i <= 12;
+              const recovery = i > 12;
+              const n50 = crash ? 100 - ((i - 3) / 9) * 28 : recovery ? Math.min(100, 72 + ((i - 12) / 18) * 28) : 100;
+              const tm = crash ? 100 - ((i - 3) / 9) * 35 : recovery ? Math.min(100, 65 + ((i - 12) / 14) * 35) : 100;
+              return { month: i + 1, nifty50: Math.round(n50), totalMarket: Math.round(tm) };
+            })
+          }
         ];
 
-        const sipUnits = [
-            { stage: "Normal", units: 45 }, { stage: "Crash -20%", units: 56 }, { stage: "Crash -40%", units: 75 }, { stage: "Bottom -50%", units: 90 }
+        const sipUnitsData = [
+          { month: "Before Crash", nav: 100, units: 45, label: "Normal" },
+          { month: "Crash -20%", nav: 80, units: 56, label: "Dip" },
+          { month: "Crash -40%", nav: 60, units: 75, label: "Steep" },
+          { month: "Crash -50%", nav: 50, units: 90, label: "Bottom" },
+          { month: "Recovery -30%", nav: 70, units: 64, label: "Rising" },
+          { month: "Full Recovery", nav: 100, units: 45, label: "Normal" },
         ];
 
-        function App() {
-            const [tab, setTab] = useState('crashes');
-            const [crashIdx, setCrashIdx] = useState(0);
+        const scenarioData = [
+          { scenario: "No crash (12% CAGR)", year5: 3.67, year10: 10.45, year15: 22.6 },
+          { scenario: "One 40% crash (Y3, quick recovery)", year5: 3.2, year10: 10.8, year15: 23.9 },
+          { scenario: "One 40% crash (Y3, slow recovery)", year5: 2.9, year10: 10.1, year15: 22.1 },
+          { scenario: "Two crashes (Y3 & Y8)", year5: 3.1, year10: 9.8, year15: 23.4 },
+        ];
 
+        const keyTruths = [
+          { icon: "📉", title: "Total Market falls harder", desc: "In every crash, Total Market drops 5–10% more than Nifty 50 due to mid/small cap exposure." },
+          { icon: "⚡", title: "But recovers faster", desc: "Mid/small caps lead recoveries. In 2020, Total Market recovered in 6 months vs 7 for Nifty 50." },
+          { icon: "🎯", title: "SIP is your crash shield", desc: "A 40% crash means you buy 75 units/month at ₹4,500 instead of 45. That's 67% more units at discount." },
+          { icon: "⏱️", title: "Time is your real protection", desc: "On a 15-year horizon, every historical crash has been noise. Your exit year matters more than crash years." },
+        ];
+
+        const CustomTooltip = ({ active, payload, label }) => {
+          if (active && payload && payload.length) {
             return (
-                <div className="container">
-                    <h1>Khushboo's SIP Resilience</h1>
-                    <div className="nav-tabs">
-                        <button className={`tab-btn ${tab==='crashes'?'active':''}`} onClick={()=>setTab('crashes')}>📉 Crashes</button>
-                        <button className={`tab-btn ${tab==='sip'?'active':''}`} onClick={()=>setTab('sip')}>🎯 SIP Advantage</button>
-                    </div>
-
-                    {tab === 'crashes' ? (
-                        <div className="card">
-                            <div style={{display:'flex', gap:10, marginBottom:20}}>
-                                {crashes.map((c, i) => (
-                                    <button key={c.id} onClick={()=>setCrashIdx(i)} style={{padding:'8px 16px', borderRadius:6, border:'1px solid #334155', background: crashIdx===i?c.color:'transparent', color:'white', cursor:'pointer'}}>{c.name}</button>
-                                ))}
-                            </div>
-                            <div style={{height:300}}>
-                                <ResponsiveContainer>
-                                    <AreaChart data={crashes[crashIdx].data}>
-                                        <XAxis dataKey="m" stroke="#475569" />
-                                        <YAxis stroke="#475569" />
-                                        <Tooltip contentStyle={{background:'#0f172a', border:'1px solid #334155'}}/>
-                                        <Area type="monotone" dataKey="v" stroke={crashes[crashIdx].color} fill={crashes[crashIdx].color} fillOpacity={0.2} strokeWidth={3} />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="card">
-                            <h3>Units Bought per ₹4,500 SIP</h3>
-                            <div style={{height:300}}>
-                                <ResponsiveContainer>
-                                    <BarChart data={sipUnits}>
-                                        <XAxis dataKey="stage" stroke="#475569" />
-                                        <YAxis stroke="#475569" />
-                                        <Bar dataKey="units" fill="#22c55e" radius={[6,6,0,0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-                    )}
-                </div>
+              <div style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, padding: "10px 14px" }}>
+                <p style={{ color: "#94a3b8", fontSize: 11, marginBottom: 6 }}>Month {label}</p>
+                {payload.map((p, i) => (
+                  <p key={i} style={{ color: p.color, fontSize: 13, margin: "2px 0" }}>
+                    {p.name}: {p.value}
+                  </p>
+                ))}
+              </div>
             );
+          }
+          return null;
+        };
+
+        function DrawdownSimulation() {
+          const [activeCrash, setActiveCrash] = useState(0);
+          const [tab, setTab] = useState("crashes");
+          const crash = crashes[activeCrash];
+
+          return (
+            <div style={{ minHeight: "100vh", background: "#030712", color: "#f1f5f9", fontFamily: "serif", padding: "32px 20px" }}>
+              <div style={{ maxWidth: 900, margin: "0 auto" }}>
+                <h1 style={{ textAlign: "center", marginBottom: 40 }}>What Happens to Khushboo's SIP When Markets Crash?</h1>
+                
+                <div style={{ display: "flex", gap: 4, marginBottom: 32, background: "#0f172a", borderRadius: 10, padding: 4 }}>
+                  {["crashes", "sip", "outcome"].map(id => (
+                    <button key={id} onClick={() => setTab(id)} style={{
+                      flex: 1, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer",
+                      background: tab === id ? "#1e293b" : "transparent", color: tab === id ? "#f1f5f9" : "#475569"
+                    }}>{id === "crashes" ? "Historical" : id === "sip" ? "SIP Strategy" : "Outcome"}</button>
+                  ))}
+                </div>
+
+                {tab === "crashes" && (
+                    <div style={{ background: "#0f172a", borderRadius: 12, padding: 20 }}>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <AreaChart data={crash.months}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                                <XAxis dataKey="month" stroke="#475569" />
+                                <YAxis stroke="#475569" />
+                                <Tooltip content={<CustomTooltip />} />
+                                <Area type="monotone" dataKey="totalMarket" stroke={crash.color} fill={crash.color} fillOpacity={0.2} />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
+                )}
+
+                {tab === "sip" && (
+                    <div style={{ background: "#0f172a", borderRadius: 12, padding: 20 }}>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={sipUnitsData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                                <XAxis dataKey="month" stroke="#475569" />
+                                <YAxis stroke="#475569" />
+                                <Bar dataKey="units" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                )}
+
+                {tab === "outcome" && (
+                    <div style={{ background: "#0f172a", borderRadius: 12, padding: 20 }}>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={scenarioData} layout="vertical">
+                                <XAxis type="number" stroke="#475569" />
+                                <YAxis type="category" dataKey="scenario" stroke="#475569" width={150} />
+                                <Bar dataKey="year15" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                )}
+              </div>
+            </div>
+          );
         }
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<DrawdownSimulation />);
     </script>
 </body>
 </html>
